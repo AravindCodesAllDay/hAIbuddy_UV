@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { MdFileUpload } from "react-icons/md";
 import axios from "axios";
 
 const Setup = () => {
@@ -143,7 +142,7 @@ const Setup = () => {
             </h2>
             {!pdfPreview && (
               <div
-                className="border-2 border-dashed border-gray-600 p-8 w-full text-center cursor-pointer hover:border-[#FFD85C] rounded-none"
+                className="flex flex-col items-center gap-3 border-2 border-dashed border-gray-600 p-8 w-full cursor-pointer hover:border-[#FFD85C] rounded-none"
                 onClick={() => document.getElementById("pdfInput").click()}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
@@ -151,7 +150,16 @@ const Setup = () => {
                   handlePdfUpload({ target: { files: e.dataTransfer.files } });
                 }}
               >
-                <MdFileUpload className="text-5xl mx-auto mb-2 text-gray-400" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="text-gray-400 size-16"
+                >
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                  <path d="M12 2l.117 .007a1 1 0 0 1 .876 .876l.007 .117v4l.005 .15a2 2 0 0 0 1.838 1.844l.157 .006h4l.117 .007a1 1 0 0 1 .876 .876l.007 .117v9a3 3 0 0 1 -2.824 2.995l-.176 .005h-10a3 3 0 0 1 -2.995 -2.824l-.005 -.176v-14a3 3 0 0 1 2.824 -2.995l.176 -.005zm0 9l-.09 .004l-.058 .007l-.118 .025l-.105 .035l-.113 .054l-.111 .071a1 1 0 0 0 -.112 .097l-2.5 2.5a1 1 0 0 0 0 1.414l.094 .083a1 1 0 0 0 1.32 -.083l.793 -.793v3.586a1 1 0 0 0 2 0v-3.585l.793 .792a1 1 0 0 0 1.414 -1.414l-2.5 -2.5l-.082 -.073l-.104 -.074l-.098 -.052l-.11 -.044l-.112 -.03l-.126 -.017z" />
+                  <path d="M19 7h-4l-.001 -4.001z" />
+                </svg>
                 <p className="text-gray-400">
                   Drag & Drop or Click to Upload PDF
                 </p>
