@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from app.core.settings import settings
 from app.core.logging_config import setup_logging
 from app.utils.limiter import limiter, custom_rate_limit_exceeded_handler
-from app.api import interview_ws, interview_route, user_route,code_interview_ws
+from app.api import interview_ws, interview_route, user_route
 from app.services.init_services import ServiceContainer
 
 setup_logging(settings.LOG_LEVEL)
@@ -47,7 +47,8 @@ app.add_middleware(
 # -----------------------------
 app.state = SimpleNamespace()
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, custom_rate_limit_exceeded_handler)
+app.add_exception_handler(
+    RateLimitExceeded, custom_rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
 # -----------------------------
@@ -56,7 +57,6 @@ app.add_middleware(SlowAPIMiddleware)
 app.include_router(user_route.router)
 app.include_router(interview_route.router)
 app.include_router(interview_ws.router)
-app.include_router(code_interview_ws.router)
 
 
 # -----------------------------

@@ -572,6 +572,15 @@ wheels = [
 ]
 
 [[package]]
+name = "diskcache"
+version = "5.6.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3f/21/1c1ffc1a039ddcc459db43cc108658f32c57d271d7289a2794e401d0fdb6/diskcache-5.6.3.tar.gz", hash = "sha256:2c3a3fa2743d8535d832ec61c2054a1641f41775aa7c556758a109941e33e4fc", size = 67916, upload-time = "2023-08-31T06:12:00.316Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3f/27/4570e78fc0bf5ea0ca45eb1de3818a23787af9b390c0b0a0033a1b8236f9/diskcache-5.6.3-py3-none-any.whl", hash = "sha256:5e31b2d5fbad117cc363ebaf6b689474db18a1f6438bc82358b024abd4c2ca19", size = 45550, upload-time = "2023-08-31T06:11:58.822Z" },
+]
+
+[[package]]
 name = "dnspython"
 version = "2.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1137,6 +1146,18 @@ sdist = { url = "https://files.pythonhosted.org/packages/bb/e5/c968d43a65128cd54
 wheels = [
     { url = "https://files.pythonhosted.org/packages/40/96/4fcd44aed47b8fcc457653b12915fcad192cd646510ef3f29fd216f4b0ab/limits-5.6.0-py3-none-any.whl", hash = "sha256:b585c2104274528536a5b68864ec3835602b3c4a802cd6aa0b07419798394021", size = 60604, upload-time = "2025-09-29T17:15:18.419Z" },
 ]
+
+[[package]]
+name = "llama-cpp-python"
+version = "0.3.16"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "diskcache" },
+    { name = "jinja2" },
+    { name = "numpy" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e4/b4/c8cd17629ced0b9644a71d399a91145aedef109c0333443bef015e45b704/llama_cpp_python-0.3.16.tar.gz", hash = "sha256:34ed0f9bd9431af045bb63d9324ae620ad0536653740e9bb163a2e1fcb973be6", size = 50688636, upload-time = "2025-08-15T04:58:29.212Z" }
 
 [[package]]
 name = "llvmlite"
@@ -2498,6 +2519,7 @@ dependencies = [
     { name = "coqui-tts" },
     { name = "fastapi", extra = ["standard"] },
     { name = "faster-whisper" },
+    { name = "llama-cpp-python" },
     { name = "motor" },
     { name = "ollama" },
     { name = "passlib" },
@@ -2528,6 +2550,7 @@ requires-dist = [
     { name = "coqui-tts", specifier = ">=0.27.2" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.116.2" },
     { name = "faster-whisper", specifier = ">=1.2.0" },
+    { name = "llama-cpp-python", specifier = ">=0.3.16" },
     { name = "motor", specifier = ">=3.7.1" },
     { name = "ollama", specifier = ">=0.5.4" },
     { name = "passlib", specifier = ">=1.7.4" },
