@@ -1,0 +1,50 @@
+[project]
+name = "server"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11, <3.13"
+dependencies = [
+    "bcrypt==4.3.0",
+    "bson>=0.5.10",
+    "cachetools>=6.2.0",
+    "coqui-tts>=0.27.2",
+    "fastapi[standard]>=0.116.2",
+    "faster-whisper>=1.2.0",
+    "motor>=3.7.1",
+    "ollama>=0.5.4",
+    "passlib>=1.7.4",
+    "pydantic>=2.11.9",
+    "pydantic-settings>=2.11.0",
+    "pyjwt>=2.10.1",
+    "pypdf2>=3.0.1",
+    "slowapi>=0.1.9",
+    "uvicorn>=0.35.0",
+    "websockets>=15.0.1",
+]
+
+[project.optional-dependencies]
+cu129 = [
+    "torch",
+    "torchvision",
+    "torchaudio",
+    "transformers",
+]
+
+[tool.uv]
+conflicts = [
+    [
+        { extra = "cpu" },
+        { extra = "cu129" },
+    ],
+]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu129", extra = "cu129" }
+torchvision = { index = "pytorch-cu129", extra = "cu129" }
+torchaudio = { index = "pytorch-cu129", extra = "cu129" }
+
+[[tool.uv.index]]
+name = "pytorch-cu129"
+url = "https://download.pytorch.org/whl/cu129"
+explicit = true
