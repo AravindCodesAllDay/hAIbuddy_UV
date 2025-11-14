@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import useVAD from "./hooks/useVAD";
 import AudioOrb from "./AudioOrb";
 import CONFIG from "./config";
-import audioBufferToBase64 from "./utils/audioBufferToBase64";
+import blobToBase64 from "./utils/blobToBase64";
 import useWebSocket from "./hooks/useWebSocket";
 import useAudioPlayback from "./hooks/useAudioPlayback";
 import useIdleTimer from "./hooks/useIdleTimer";
@@ -23,6 +23,7 @@ export default function VoiceAssistant() {
   const userIsSpeakingRef = useRef(false);
   const ttsRequestIndexRef = useRef(0);
   const unprocessedTtsTextRef = useRef("");
+  const mediaRecorderRef = useRef(null);
 
   useEffect(() => {
     isProcessingRef.current = isProcessing;
@@ -78,75 +79,83 @@ export default function VoiceAssistant() {
     clearQueues,
   } = useAudioPlayback(idleTimer.clear, processAudioQueue);
 
+  const sendWsJson = (data) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(data));
+    }
+  };
+
   const onSpeechStart = useCallback(() => {
     idleTimer.clear();
     userIsSpeakingRef.current = true;
     setIsUserSpeaking(true);
     setStatus("🎙️ Speaking...");
 
+    // Stop any playing audio
     if (isPlayingRef.current) {
       console.log("User interrupted assistant.");
       stopCurrentAudio();
     } else {
       interruptedAudioRef.current = null;
     }
-  }, [idleTimer, isPlayingRef, stopCurrentAudio, interruptedAudioRef]);
 
-  const onSpeechEnd = useCallback(
-    async (audio) => {
-      const audioDurationMs =
-        (audio.length / CONFIG.AUDIO_SETTINGS.sampleRate) * 1000;
+    // Clear any pending TTS and old content
+    clearQueues();
+    unprocessedTtsTextRef.current = "";
+    ttsRequestIndexRef.current = 0; // CRITICAL: Reset TTS index for new turn
+    setAssistantResponse("");
+    setUserText("");
 
-      idleTimer.clear();
-      userIsSpeakingRef.current = false;
-      setIsUserSpeaking(false);
+    sendWsJson({ type: "start_speech_stream" });
 
-      if (isProcessingRef.current) return;
+    // Start recording
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      mediaRecorderRef.current = recorder;
 
-      if (audioDurationMs < (CONFIG.MIN_SPEECH_DURATION_MS || 250)) {
-        console.log(`Speech too short (${audioDurationMs}ms), ignoring.`);
-        processAudioQueue();
-
-        if (
-          !interruptedAudioRef.current &&
-          audioQueueRef.current.length === 0
-        ) {
-          setStatus("👂 Listening...");
-          idleTimer.start();
+      recorder.addEventListener("dataavailable", async (event) => {
+        if (event.data.size > 0) {
+          const base64Audio = await blobToBase64(event.data);
+          sendWsJson({ type: "audio_chunk", audio: base64Audio });
         }
-        return;
-      }
+      });
 
-      console.log("Valid speech detected. Clearing queues.");
-      clearQueues();
-      unprocessedTtsTextRef.current = "";
+      // Send data in 500ms chunks
+      recorder.start(500);
+    });
+  }, [
+    idleTimer,
+    isPlayingRef,
+    stopCurrentAudio,
+    interruptedAudioRef,
+    clearQueues,
+  ]);
 
-      setStatus("⏳ Sending to server...");
-      setIsProcessing(true);
-      setUserText("...");
-      setAssistantResponse("");
+  const onSpeechEnd = useCallback(async () => {
+    idleTimer.clear();
+    userIsSpeakingRef.current = false;
+    setIsUserSpeaking(false);
 
-      ttsRequestIndexRef.current = 0;
+    if (isProcessingRef.current) return;
 
-      const base64Audio = audioBufferToBase64(audio);
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(
-          JSON.stringify({ type: "user_audio", audio: base64Audio })
-        );
-      } else {
-        console.error("WebSocket is not open.");
-        setStatus("Error: WebSocket disconnected.");
-        setIsProcessing(false);
-      }
-    },
-    [
-      idleTimer,
-      processAudioQueue,
-      clearQueues,
-      interruptedAudioRef,
-      audioQueueRef,
-    ]
-  );
+    // Stop recording
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state === "recording"
+    ) {
+      mediaRecorderRef.current.stop();
+    }
+    sendWsJson({ type: "end_speech_stream" });
+
+    // Stop the mic tracks
+    mediaRecorderRef.current?.stream
+      .getTracks()
+      .forEach((track) => track.stop());
+    mediaRecorderRef.current = null;
+
+    setStatus("🤔 Thinking...");
+    setIsProcessing(true);
+  }, [idleTimer, isProcessingRef]);
 
   const onVadIdle = useCallback(() => {
     if (
@@ -185,6 +194,10 @@ export default function VoiceAssistant() {
           stop();
           idleTimer.clear();
           setRemainingTime(null);
+          break;
+
+        case "partial_transcription":
+          setUserText(data.user_text);
           break;
 
         case "transcription":
@@ -258,10 +271,7 @@ export default function VoiceAssistant() {
         }
 
         case "tts_audio_chunk":
-          if (userIsSpeakingRef.current) {
-            console.log("Ignoring TTS chunk — user is speaking.");
-            break;
-          }
+          // Removed redundant userIsSpeakingRef check - audio is already cancelled on speech start
           pendingAudioRef.current[data.index] = data.audio;
           processAudioQueue();
           break;
@@ -347,14 +357,14 @@ export default function VoiceAssistant() {
       <p className="text-center text-xl text-gray-400 mb-8">{status}</p>
 
       <div className="w-full max-w-2xl space-y-4">
-        <div className="p-4 border border-green-700 rounded-lg bg-white/10 shadow-lg min-h-[6rem] transition-all duration-300">
+        <div className="p-4 border border-green-700 rounded-lg bg-white/10 shadow-lg min-h-24 transition-all duration-300">
           <h2 className="text-lg font-semibold mb-1 text-green-300">
             You Said:
           </h2>
           <p className="text-lg text-gray-100 mt-1">{userText || "..."}</p>
         </div>
 
-        <div className="p-4 border border-purple-700 rounded-lg bg-white/10 shadow-lg min-h-[6rem] transition-all duration-300">
+        <div className="p-4 border border-purple-700 rounded-lg bg-white/10 shadow-lg min-h-24 transition-all duration-300">
           <h2 className="text-lg font-semibold mb-1 text-purple-300">
             Assistant:
           </h2>

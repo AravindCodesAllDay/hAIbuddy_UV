@@ -13,9 +13,9 @@ const CONFIG = {
 
   // --- VAD Settings (Voice Activity Detection) ---
   VAD_SETTINGS: {
-    threshold: 0.8, // How sensitive VAD is to speech.
+    threshold: 0.9, // How sensitive VAD is to speech.
     minSpeechDuration: 0.5, // Minimum duration of speech to be considered.
-    minSilenceDuration: 0.8, // Silence duration after speech to trigger onSpeechEnd.
+    minSilenceDuration: 1.2, // Silence duration after speech to trigger onSpeechEnd.
   },
 
   // --- TTS Sentence Parsing ---

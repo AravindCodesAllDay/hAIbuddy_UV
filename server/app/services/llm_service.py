@@ -14,11 +14,11 @@ def get_ollama_options() -> dict:
     """Returns a dictionary of Ollama generation options from settings."""
     return {
         "temperature": settings.OLLAMA_TEMPERATURE,
-        "top_k": settings.OLLAMA_TOP_K,
-        "top_p": settings.OLLAMA_TOP_P,
-        "num_ctx": settings.OLLAMA_NUM_CTX,
-        "seed":settings.OLLAMA_SEED,
-        "repeat_penalty":settings.OLLAMA_REPEAT_PENALITY
+        # "top_k": settings.OLLAMA_TOP_K,
+        # "top_p": settings.OLLAMA_TOP_P,
+        # "num_ctx": settings.OLLAMA_NUM_CTX,
+        # "seed": settings.OLLAMA_SEED,
+        "repeat_penalty": settings.OLLAMA_REPEAT_PENALITY
     }
 
 
@@ -36,17 +36,14 @@ async def stream_llm_response(
     full_response = ""
     client: AsyncClient = ServiceContainer.llm()
 
-    # Use the override if provided, otherwise default to chat_history
     messages_to_send = messages_for_llm if messages_for_llm is not None else chat_history
-
-    ollama_options = get_ollama_options()  # Retrieve Ollama options
 
     try:
         async for chunk in await client.chat(
                 model=settings.OLLAMA_MODEL,
                 messages=messages_to_send,
                 stream=True,
-                options=ollama_options  # Pass the options dictionary
+                options=get_ollama_options()
         ):
             token = chunk["message"]["content"]
             if token:

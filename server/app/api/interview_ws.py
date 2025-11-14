@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import json
 import logging
 from datetime import datetime, UTC
@@ -6,7 +7,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 from bson import ObjectId
 from app.database.connection import mongodb
 from app.utils.auth import decode_access_token
-from app.services.stt_service import transcribe_audio
+from app.services.stt_service import stream_transcribe
 from app.services.tts_service import generate_tts
 from app.services.llm_service import stream_llm_response
 from app.utils.prompts import interview_system_prompt, IDLE_NUDGE_PROMPTS
@@ -31,6 +32,8 @@ class InterviewConnectionManager:
         self.timer_task: asyncio.Task | None = None
         self.remaining_time = settings.SESSION_DURATION
         self.idle_count = 0
+        self.stt_stream_task: asyncio.Task | None = None
+        self.stt_stream_queue: asyncio.Queue | None = None
 
     async def _authenticate_and_validate(self) -> bool:
         """Fetch and validate the user's session."""
@@ -147,24 +150,79 @@ class InterviewConnectionManager:
             logger.info("User interrupted LLM stream.")
             await self.send_json({"type": "cancelled"})
 
+    async def _handle_stt_stream(self):
+        """
+        A background task that consumes audio from the queue and
+        streams it to the STT service.
+        """
+        if not self.stt_stream_queue:
+            return
+
+        # 1. Create an async generator that the STT service can read from
+        async def audio_chunk_generator():
+            while True:
+                chunk_base64 = await self.stt_stream_queue.get()
+                if chunk_base64 is None:
+                    # End signal
+                    break
+                yield base64.b64decode(chunk_base64)
+
+        # 2. Call the streaming STT service
+        try:
+            # This API is hypothetical - replace with your actual STT service's API
+            async for result in stream_transcribe(audio_chunk_generator()):
+                if result.is_final:
+                    # Final result - send the "transcription" message
+                    await self.send_json({
+                        "type": "transcription",
+                        "user_text": result.text
+                    })
+
+                    # Now that we have the final text, send it to the LLM
+                    self.chat_history.append({"role": "user", "content": result.text})
+                    self.active_llm_task = asyncio.create_task(
+                        stream_llm_response(self.websocket, self.chat_history)
+                    )
+                else:
+                    # Interim result - send "partial_transcription"
+                    await self.send_json({
+                        "type": "partial_transcription",
+                        "user_text": result.text
+                    })
+
+        except Exception as e:
+            logger.error(f"STT Stream error for {self.session_id}: {e}")
+            await self.send_error("Error during transcription.")
+        finally:
+            self.stt_stream_task = None
+            self.stt_stream_queue = None
+
     async def handle_message(self, data: dict):
         """Handle incoming WebSocket messages."""
         msg_type = data.get("type")
 
-        if msg_type == "user_audio":
+        # --- THIS REPLACES "user_audio" ---
+        if msg_type == "start_speech_stream":
             self.idle_count = 0
             await self._cancel_active_llm()
 
-            user_text = await transcribe_audio(data.get("audio"))
-            if not user_text:
-                return
+            # If a stream is already running, cancel it
+            if self.stt_stream_task and not self.stt_stream_task.done():
+                self.stt_stream_task.cancel()
 
-            await self.send_json({"type": "transcription", "user_text": user_text})
-            self.chat_history.append({"role": "user", "content": user_text})
+            # Create a new queue and start the processing task
+            self.stt_stream_queue = asyncio.Queue()
+            self.stt_stream_task = asyncio.create_task(self._handle_stt_stream())
 
-            self.active_llm_task = asyncio.create_task(
-                stream_llm_response(self.websocket, self.chat_history)
-            )
+        elif msg_type == "audio_chunk":
+            if self.stt_stream_queue:
+                # Add the audio data (which is base64) to the queue
+                await self.stt_stream_queue.put(data.get("audio"))
+
+        elif msg_type == "end_speech_stream":
+            if self.stt_stream_queue:
+                # Send a 'None' to the queue to signal the end
+                await self.stt_stream_queue.put(None)
 
         elif msg_type == "user_idle":
             self.idle_count += 1
@@ -226,6 +284,8 @@ class InterviewConnectionManager:
             self.timer_task.cancel()
         if self.active_llm_task and not self.active_llm_task.done():
             self.active_llm_task.cancel()
+        if self.stt_stream_task and not self.stt_stream_task.done():
+            self.stt_stream_task.cancel()
         logger.info(f"Cleaned up tasks for session {self.session_id}.")
 
     async def send_json(self, data: dict):

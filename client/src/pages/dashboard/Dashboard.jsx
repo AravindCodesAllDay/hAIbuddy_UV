@@ -66,7 +66,7 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col min-h-screen bg-[#1e1e1e] text-white">
       <ToastContainer />
-      <main className="flex-grow px-6 py-20 max-w-7xl mx-auto">
+      <main className="grow px-6 py-20 max-w-7xl mx-auto">
         <section className="text-center mb-16">
           <h2 className="text-4xl font-extrabold mb-4">
             Ready to <span className="text-[#38BDF8]">Evolve?</span>

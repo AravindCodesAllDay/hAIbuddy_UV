@@ -22,7 +22,6 @@ async def lifespan(app: FastAPI):
     # asyncio.create_task(ServiceContainer.keep_alive())
     yield
     # Shutdown
-    await ServiceContainer.close_all()
 
 
 app = FastAPI(

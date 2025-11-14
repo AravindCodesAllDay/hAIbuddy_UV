@@ -8,7 +8,6 @@ from fastapi import UploadFile, HTTPException
 
 from app.database.connection import mongodb
 from app.models.interview_model import Interview
-from app.services.llm_service import summarize_resume
 
 logger = logging.getLogger(__name__)
 
